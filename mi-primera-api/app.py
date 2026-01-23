@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 
 # import la db y la tabla tareas
 from models import db, Tarea
+# importar flask-migrate
+from flask_migrate import Migrate
 
 # cargar las variables de entorno
 load_dotenv()
@@ -17,6 +19,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
+
+# instaciar Migrate
+migrate = Migrate(app, db)
 
 # Ya podemos crear endpoints (rutas)
 @app.route("/") # raiz
@@ -49,8 +54,8 @@ def obtener_tarea(id):
     try:
         tarea = Tarea.query.get(id)
         if tarea is None:
-            return jsonify({'ok': True, 'message': 'tarea no encontrada'}), 404
-        return jsonify({'ok': False, 'data': tarea.to_dict()})
+            return jsonify({'ok': False, 'message': 'Tarea no encontrada'}), 404
+        return jsonify({'ok': True, 'data': tarea.to_dict()})
     except Exception as e:
         return jsonify({'ok': False, 'message': str(e)}), 500
 
@@ -60,52 +65,52 @@ def obtener_tarea(id):
 def crear_tarea():
     try:
         payload = request.get_json()
-        
+
         # validacion titulo
         if not payload.get('titulo'):
-            return jsonify({'ok': False, 'message': 'El título es requerido'}), 400
-        
+            return jsonify({'ok': False, 'message': 'El titulo es requerido'}), 400
+
         # Guardar un registro en la base de datos
         nueva_tarea = Tarea(
-             titulo=payload.get('titulo'),
-             descripcion=payload.get('descripcion')
-             )
+            titulo=payload.get('titulo'),
+            descripcion=payload.get('descripcion')
+        )
         db.session.add(nueva_tarea)
         db.session.commit()
-        
+
         return jsonify({'ok': True, 'data': nueva_tarea.to_dict()}), 201
     except Exception as e:
         return jsonify({'ok': False, 'message': str(e)}), 500
 
-# Actualizar una tarea
+
 @app.route('/api/tareas/<int:id>', methods=['PUT'])
 def actualizar_tarea(id):
     try:
         payload = request.get_json()
         tarea = Tarea.query.get(id)
 
-        if tarea is None:        
+        if tarea is None:
             return jsonify({'ok': False, 'message': 'Tarea no encontrada'}), 404
-   
+
         if 'titulo' in payload:
-                    tarea.titulo = payload.get('titulo')
+            tarea.titulo = payload.get('titulo')
 
         if 'completado' in payload:
-                    tarea.completado = payload.get('completado')
+            tarea.completado = payload.get('completado')
 
         db.session.commit()
         return jsonify({'ok': True, 'data': tarea.to_dict()})
     except Exception as e:
         return jsonify({'ok': False, 'message': str(e)}), 500
 
-# Eliminar una tarea
+
 @app.route('/api/tareas/<int:id>', methods=['DELETE'])
 def eliminar_tarea(id):
-    try: 
+    try:
         tarea = Tarea.query.get(id)
         if tarea is None:
-            return jsonify({'ok': False, 'message': 'Tarea no encontrada'}), 404
-        
+            return jsonify({'ok': False, 'message': 'Tarea no encontrado'}), 404
+
         db.session.delete(tarea)
         db.session.commit()
         return jsonify({'ok': True, 'message': 'Tarea eliminada de forma exitosa'})
@@ -119,8 +124,9 @@ def eliminar_tarea(id):
 # se requiere hacer una configuración extra para que nuestras tablas se creen de forma automatica
 if __name__ == "__main__":
     # crear las tablas
-    with app.app_context():
-        db.create_all()
-        print("Base de datos conectada!")
-        print("Tablas creadas!")
+    # with app.app_context():
+    #     db.create_all()
+    #     print("Base de datos conectada!")
+    #     print("Tablas creadas!")
+    # Hemos comentado esta seccion porque ahora Migrate se encarga de la DB
     app.run(debug=True)
