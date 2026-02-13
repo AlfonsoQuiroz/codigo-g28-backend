@@ -7,4 +7,4 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 # Ejecutar migracion
-flask db upgrade 
+flask db upgrade
