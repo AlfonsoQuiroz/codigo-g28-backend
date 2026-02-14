@@ -13,7 +13,7 @@ class TodoSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'title',
-            'descrption',
+            'description',
             'category',
             'created_at',
             'user'
