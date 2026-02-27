@@ -1,8 +1,11 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions
+from drf_spectacular.utils import extend_schema
 from django.contrib.auth.models import User
 from .serializers import RegisterSerializer, UserSerializer
 
 # Registrar usuarios (POST)
+
+@extend_schema(tags=['Register'])
 class RegisterView(generics.CreateAPIView):
     # Solo tiene el endpoint create(POST)
     queryset = User.objects.all()
