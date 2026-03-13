@@ -178,6 +178,138 @@ const options: swaggerJsdoc.Options = {
             error: { type: "string", example: "Internal server error" },
           },
         },
+
+        // ── Auth schemas ─────────────────────────────────────────────────────
+        RegisterInput: {
+          type: "object",
+          required: ["username", "email", "password"],
+          properties: {
+            username: { type: "string", example: "john_doe" },
+            email: {
+              type: "string",
+              format: "email",
+              example: "john@example.com",
+            },
+            password: {
+              type: "string",
+              format: "password",
+              minLength: 6,
+              example: "secret123",
+            },
+          },
+        },
+        LoginInput: {
+          type: "object",
+          required: ["email", "password"],
+          properties: {
+            email: {
+              type: "string",
+              format: "email",
+              example: "john@example.com",
+            },
+            password: {
+              type: "string",
+              format: "password",
+              example: "secret123",
+            },
+          },
+        },
+        AuthUser: {
+          type: "object",
+          properties: {
+            id: { type: "integer", example: 1 },
+            username: { type: "string", example: "john_doe" },
+            email: {
+              type: "string",
+              format: "email",
+              example: "john@example.com",
+            },
+            rol: { type: "string", example: "USER" },
+          },
+        },
+        RegisterResponse: {
+          type: "object",
+          properties: {
+            ok: { type: "boolean", example: true },
+            data: {
+              type: "object",
+              properties: {
+                id: { type: "integer", example: 1 },
+                username: { type: "string", example: "john_doe" },
+                email: {
+                  type: "string",
+                  format: "email",
+                  example: "john@example.com",
+                },
+                rol: { type: "string", example: "USER" },
+                createdAt: {
+                  type: "string",
+                  format: "date-time",
+                  example: "2026-03-12T00:00:00.000Z",
+                },
+              },
+            },
+          },
+        },
+        LoginResponse: {
+          type: "object",
+          properties: {
+            ok: { type: "boolean", example: true },
+            data: {
+              type: "object",
+              properties: {
+                token: {
+                  type: "string",
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                },
+                user: { $ref: "#/components/schemas/AuthUser" },
+              },
+            },
+          },
+        },
+        ProfileResponse: {
+          type: "object",
+          properties: {
+            ok: { type: "boolean", example: true },
+            data: {
+              type: "object",
+              properties: {
+                id: { type: "integer", example: 1 },
+                username: { type: "string", example: "john_doe" },
+                email: {
+                  type: "string",
+                  format: "email",
+                  example: "john@example.com",
+                },
+                rol: { type: "string", example: "USER" },
+                orders: { type: "array", items: { type: "object" } },
+                createdAt: {
+                  type: "string",
+                  format: "date-time",
+                  example: "2026-03-12T00:00:00.000Z",
+                },
+              },
+            },
+          },
+        },
+        UnauthorizedResponse: {
+          type: "object",
+          properties: {
+            ok: { type: "boolean", example: false },
+            message: { type: "string", example: "Token expirado" },
+          },
+        },
+      },
+
+      // ── Security schemes ───────────────────────────────────────────────────
+      securitySchemes: {
+        BearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+          description:
+            "Ingresa el token JWT obtenido en /api/auth/login. Formato: **Bearer &lt;token&gt;**",
+        },
       },
     },
 
@@ -185,6 +317,122 @@ const options: swaggerJsdoc.Options = {
     // PATHS — toda la documentación de endpoints va aquí
     // ─────────────────────────────────────────────────────────────────────────
     paths: {
+      // ── Auth ─────────────────────────────────────────────────────────────
+      "/api/auth/register": {
+        post: {
+          summary: "Registrar un nuevo usuario",
+          tags: ["Auth"],
+          description:
+            "Crea una cuenta de usuario nueva. La contraseña se almacena encriptada con bcrypt. Retorna el usuario creado (sin la contraseña).",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/RegisterInput" },
+              },
+            },
+          },
+          responses: {
+            201: {
+              description: "Usuario registrado exitosamente",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/RegisterResponse" },
+                },
+              },
+            },
+            500: {
+              description: "Error interno del servidor (ej. email duplicado)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/api/auth/login": {
+        post: {
+          summary: "Iniciar sesión",
+          tags: ["Auth"],
+          description:
+            "Autentica al usuario con email y contraseña. Retorna un token JWT válido por 24 horas junto con la información básica del usuario.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/LoginInput" },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Login exitoso — token JWT generado",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/LoginResponse" },
+                },
+              },
+            },
+            500: {
+              description: "Credenciales inválidas u error interno",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      "/api/auth/profile": {
+        get: {
+          summary: "Obtener perfil del usuario autenticado",
+          tags: ["Auth"],
+          description:
+            "Retorna el perfil completo del usuario autenticado, incluyendo sus órdenes. **Requiere token JWT** en el header `Authorization: Bearer <token>`.",
+          security: [{ BearerAuth: [] }],
+          responses: {
+            200: {
+              description: "Perfil obtenido exitosamente",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ProfileResponse" },
+                },
+              },
+            },
+            401: {
+              description: "No autorizado — token ausente, inválido o expirado",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/UnauthorizedResponse" },
+                },
+              },
+            },
+            404: {
+              description: "Usuario no encontrado",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/NotFoundResponse" },
+                },
+              },
+            },
+            500: {
+              description: "Error interno del servidor",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      // ── Products ──────────────────────────────────────────────────────────
       "/api/products": {
         get: {
           summary: "Obtener todos los productos",
@@ -375,7 +623,9 @@ const options: swaggerJsdoc.Options = {
               description: "Lista de categorías obtenida exitosamente",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/CategorySuccessListResponse" },
+                  schema: {
+                    $ref: "#/components/schemas/CategorySuccessListResponse",
+                  },
                 },
               },
             },
@@ -407,7 +657,9 @@ const options: swaggerJsdoc.Options = {
               description: "Categoría creada exitosamente",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/CategorySuccessItemResponse" },
+                  schema: {
+                    $ref: "#/components/schemas/CategorySuccessItemResponse",
+                  },
                 },
               },
             },
@@ -444,7 +696,9 @@ const options: swaggerJsdoc.Options = {
               description: "Categoría encontrada exitosamente",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/CategorySuccessItemResponse" },
+                  schema: {
+                    $ref: "#/components/schemas/CategorySuccessItemResponse",
+                  },
                 },
               },
             },
@@ -452,7 +706,9 @@ const options: swaggerJsdoc.Options = {
               description: "Categoría no encontrada",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/CategoryNotFoundResponse" },
+                  schema: {
+                    $ref: "#/components/schemas/CategoryNotFoundResponse",
+                  },
                 },
               },
             },
@@ -494,7 +750,9 @@ const options: swaggerJsdoc.Options = {
               description: "Categoría actualizada exitosamente",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/CategorySuccessItemResponse" },
+                  schema: {
+                    $ref: "#/components/schemas/CategorySuccessItemResponse",
+                  },
                 },
               },
             },
@@ -511,8 +769,7 @@ const options: swaggerJsdoc.Options = {
         delete: {
           summary: "Eliminar una categoría",
           tags: ["Categories"],
-          description:
-            "Elimina permanentemente una categoría usando su ID.",
+          description: "Elimina permanentemente una categoría usando su ID.",
           parameters: [
             {
               in: "path",
@@ -528,7 +785,9 @@ const options: swaggerJsdoc.Options = {
               description: "Categoría eliminada exitosamente",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/CategoryDeleteResponse" },
+                  schema: {
+                    $ref: "#/components/schemas/CategoryDeleteResponse",
+                  },
                 },
               },
             },
